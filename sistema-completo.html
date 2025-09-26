@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia Completo - Colegio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        .admin-panel { background: #e8f4fd; border-left: 4px solid #3498db; }
+        .auto-time { background: #f0fff0; font-weight: bold; padding: 10px; border-radius: 5px; }
+        .teacher-form { background: #fff3cd; padding: 15px; border-radius: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">Cargando sistema de asistencia...</div>
+    </div>
+
+    <script>
+        // SISTEMA DE ASISTENCIA MEJORADO - FUNCIONES COMPLETAS
+        class AttendanceSystem {
+            constructor() {
+                this.currentUser = null;
+                this.teachers = JSON.parse(localStorage.getItem('teachers')) || [
+                    {
+                        id: 1,
+                        name: "Prof. Gabriel Martínez",
+                        subjects: "Matemáticas, Psicología",
+                        schedule: "13:00",
+                        avatar: "GM",
+                        email: "gabriel@colegio.edu",
+                        phone: "123-456-7890"
+                    }
+                ];
+                
+                this.schedule = JSON.parse(localStorage.getItem('schedule')) || {
+                    period1: { start: "13:00", end: "13:40", name: "Hora 1" },
+                    period2: { start: "13:40", end: "14:20", name: "Hora 2" },
+                    period3: { start: "14:20", end: "15:00", name: "Hora 3" },
+                    period4: { start: "15:00", end: "15:40", name: "Hora 4" },
+                    recess: { start: "15:40", end: "15:55", name: "Receso" },
+                    period5: { start: "15:55", end: "16:35", name: "Hora 5" },
+                    period6: { start: "16:35", end: "17:15", name: "Hora 6" }
+                };
+                
+                this.attendance = JSON.parse(localStorage.getItem('attendance')) || [];
+                this.init();
+            }
+
+            init() {
+                this.showLogin();
+            }
+
+            saveData() {
+                localStorage.setItem('teachers', JSON.stringify(this.teachers));
+                localStorage.setItem('attendance', JSON.stringify(this.attendance));
+                localStorage.setItem('schedule', JSON.stringify(this.schedule));
+            }
+
+            // FUNCIÓN MEJORADA: Hora automática
+            getCurrentTime() {
+                const now = new Date();
+                return now.toTimeString().substring(0, 5); // Formato HH:MM
+            }
+
+            showLogin() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>🏫 Sistema de Asistencia Completo</h1>
+                        <p>Registro seguro con hora automática</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>🔐 Iniciar Sesión</h2>
+                            <div class="form-group">
+                                <label>Usuario:</label>
+                                <input type="text" id="username" placeholder="Ingresa tu usuario">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña:</label>
+                                <input type="password" id="password" placeholder="Ingresa tu contraseña">
+                            </div>
+                            <button class="btn btn-primary" onclick="app.login()">🎯 Ingresar</button>
+                            <p style="text-align: center; margin-top: 15px; color: #7f8c8d;">
+                                <small>Usa: admin / admin123</small>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            login() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                // Login simple para demo
+                if (username === 'admin' && password === 'admin123') {
+                    this.currentUser = { username, role: 'admin' };
+                    this.showDashboard();
+                } else {
+                    alert('Usuario o contraseña incorrectos. Usa: admin / admin123');
+                }
+            }
+
+            showDashboard() {
+                const today = new Date().toLocaleDateString('es-ES');
+                const todayAttendances = this.attendance.filter(a => a.date === today);
+                
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📊 Dashboard Principal</h1>
+                        <p>${today} - Bienvenido, ${this.currentUser.username}</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📈 Resumen del Día</h3>
+                            <p><span class="status-on-time">🟢 Puntual:</span> ${todayAttendances.filter(a => a.status === 'on-time').length} maestros</p>
+                            <p><span class="status-late">🔴 Tardíos:</span> ${todayAttendances.filter(a => a.status === 'late').length} maestros</p>
+                            <p><span class="status-absent">🟡 Ausentes:</span> ${this.teachers.length - todayAttendances.length} maestros</p>
+                            <p><strong>Total maestros:</strong> ${this.teachers.length}</p>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>🚀 Acciones Rápidas</h3>
+                            <button class="btn btn-primary" onclick="app.showAttendance()">📝 Registrar Asistencia</button>
+                            <button class="btn btn-success" onclick="app.showTeachersManager()">👨‍🏫 Gestionar Maestros</button>
+                            <button class="btn btn-warning" onclick="app.showScheduleManager()">⏰ Gestionar Horarios</button>
+                            <button class="btn" onclick="app.logout()" style="background: #95a5a6;">🚪 Cerrar Sesión</button>
+                        </div>
+
+                        ${todayAttendances.length > 0 ? `
+                        <div class="card">
+                            <h3>📋 Registros de Hoy</h3>
+                            ${todayAttendances.map(att => `
+                                <div style="padding: 10px; border-bottom: 1px solid #eee; margin: 5px 0;">
+                                    <strong>${att.teacher}</strong> - 
+                                    <span class="status-${att.status}">${this.getStatusText(att.status)}</span><br>
+                                    <small>Hora: ${att.entryTime} | ${att.notes || 'Sin observaciones'}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // FUNCIÓN MEJORADA: Registro con hora automática
+            showAttendance() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📝 Registro de Asistencia</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📅 Fecha: ${new Date().toLocaleDateString('es-ES')}</h3>
+                            
+                            <div class="auto-time">
+                                🕐 Hora actual automática: <strong id="currentTime">${this.getCurrentTime()}</strong>
+                                <button class="btn btn-success" onclick="app.updateTime()" style="padding: 5px 10px; margin-left: 10px;">
+                                    Actualizar Hora
+                                </button>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>👨‍🏫 Seleccionar Maestro:</label>
+                                <select id="teacherSelect">
+                                    ${this.teachers.map(teacher => 
+                                        `<option value="${teacher.id}">${teacher.name} (${teacher.schedule})</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>💬 Observaciones (opcional):</label>
+                                <input type="text" id="notes" placeholder="Ej: Llegó en taxi, justificación médica, etc.">
+                            </div>
+                            
+                            <button class="btn btn-success" onclick="app.registerAttendance()">
+                                ✅ Registrar Asistencia con Hora Actual
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Maestros por Registrar Hoy</h3>
+                            <div id="pendingList">
+                                ${this.getPendingTeachers().map(teacher => `
+                                    <div style="padding: 8px; border-left: 3px solid #e74c3c; margin: 5px 0; background: #fdf2f2;">
+                                        ${teacher.name} - Horario: ${teacher.schedule}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Actualizar hora cada 30 segundos
+                this.timeUpdateInterval = setInterval(() => {
+                    document.getElementById('currentTime').textContent = this.getCurrentTime();
+                }, 30000);
+            }
+
+            updateTime() {
+                document.getElementById('currentTime').textContent = this.getCurrentTime();
+            }
+
+            getPendingTeachers() {
+                const today = new Date().toLocaleDateString();
+                const registeredIds = this.attendance
+                    .filter(a => a.date === today)
+                    .map(a => a.teacherId);
+                
+                return this.teachers.filter(teacher => !registeredIds.includes(teacher.id));
+            }
+
+            // FUNCIÓN MEJORADA: Registro anti-fraude
+            registerAttendance() {
+                const teacherId = parseInt(document.getElementById('teacherSelect').value);
+                const entryTime = this.getCurrentTime(); // HORA AUTOMÁTICA
+                const notes = document.getElementById('notes').value;
+                
+                const teacher = this.teachers.find(t => t.id === teacherId);
+                const status = this.calculateStatus(entryTime, teacher.schedule);
+                
+                // Verificar si ya está registrado hoy
+                const today = new Date().toLocaleDateString();
+                const alreadyRegistered = this.attendance.some(a => 
+                    a.date === today && a.teacherId === teacherId
+                );
+                
+                if (alreadyRegistered) {
+                    alert('⚠️ Este maestro ya fue registrado hoy. ¿Desea actualizar el registro?');
+                    return;
+                }
+                
+                this.attendance.push({
+                    teacherId: teacher.id,
+                    teacher: teacher.name,
+                    date: today,
+                    entryTime,
+                    notes,
+                    status: status,
+                    registeredBy: this.currentUser.username,
+                    timestamp: new Date().toISOString()
+                });
+                
+                this.saveData();
+                alert(`✅ Asistencia registrada para ${teacher.name}\nHora: ${entryTime}\nEstado: ${this.getStatusText(status)}`);
+                this.showAttendance();
+            }
+
+            // NUEVA FUNCIÓN: Gestión completa de maestros
+            showTeachersManager() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>👨‍🏫 Gestión de Maestros</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>➕ Agregar Nuevo Maestro</h3>
+                            <div class="teacher-form">
+                                <div class="form-group">
+                                    <label>Nombre completo:</label>
+                                    <input type="text" id="newTeacherName" placeholder="Ej: Prof. María González">
+                                </div>
+                                <div class="form-group">
+                                    <label>Materias que enseña:</label>
+                                    <input type="text" id="newTeacherSubjects" placeholder="Ej: Matemáticas, Física">
+                                </div>
+                                <div class="form-group">
+                                    <label>Horario de ingreso:</label>
+                                    <input type="time" id="newTeacherSchedule" value="13:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email:</label>
+                                    <input type="email" id="newTeacherEmail" placeholder="ejemplo@colegio.edu">
+                                </div>
+                                <button class="btn btn-success" onclick="app.addNewTeacher()">
+                                    ➕ Agregar Maestro
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Lista de Maestros (${this.teachers.length})</h3>
+                            ${this.teachers.map(teacher => `
+                                <div class="teacher-card">
+                                    <div class="teacher-avatar">${teacher.avatar}</div>
+                                    <div style="flex: 1;">
+                                        <h4>${teacher.name}</h4>
+                                        <p>📚 ${teacher.subjects}</p>
+                                        <p>⏰ Horario: ${teacher.schedule}</p>
+                                        <p>📧 ${teacher.email || 'No email'}</p>
+                                    </div>
+                                    <div>
+                                        <button class="btn" onclick="app.editTeacher(${teacher.id})" style="padding: 5px 10px; margin: 2px;">✏️</button>
+                                        <button class="btn" onclick="app.deleteTeacher(${teacher.id})" style="padding: 5px 10px; margin: 2px; background: #e74c3c; color: white;">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            addNewTeacher() {
+                const name = document.getElementById('newTeacherName').value;
+                const subjects = document.getElementById('newTeacherSubjects').value;
+                const schedule = document.getElementById('newTeacherSchedule').value;
+                const email = document.getElementById('newTeacherEmail').value;
+                
+                if (!name || !subjects || !schedule) {
+                    alert('Por favor complete todos los campos obligatorios');
+                    return;
+                }
+                
+                const newTeacher = {
+                    id: Math.max(...this.teachers.map(t => t.id), 0) + 1,
+                    name: name,
+                    subjects: subjects,
+                    schedule: schedule,
+                    avatar: name.split(' ').map(n => n[0]).join('').substring(0, 2),
+                    email: email,
+                    phone: ''
+                };
+                
+                this.teachers.push(newTeacher);
+                this.saveData();
+                alert(`✅ Maestro "${name}" agregado exitosamente`);
+                this.showTeachersManager();
+            }
+
+            deleteTeacher(teacherId) {
+                if (confirm('¿Está seguro de eliminar este maestro? También se eliminarán sus registros de asistencia.')) {
+                    this.teachers = this.teachers.filter(t => t.id !== teacherId);
+                    this.attendance = this.attendance.filter(a => a.teacherId !== teacherId);
+                    this.saveData();
+                    this.showTeachersManager();
+                }
+            }
+
+            // NUEVA FUNCIÓN: Gestión de horarios
+            showScheduleManager() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>⏰ Gestión de Horarios</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>🕐 Horario Actual del Colegio</h3>
+                            <div id="scheduleForm">
+                                ${Object.entries(this.schedule).map(([key, period]) => `
+                                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                                        <label style="min-width: 80px;">${period.name}:</label>
+                                        <input type="time" id="${key}Start" value="${period.start}" style="flex: 1;">
+                                        <span>a</span>
+                                        <input type="time" id="${key}End" value="${period.end}" style="flex: 1;">
+                                    </div>
+                                `).join('')}
+                                <button class="btn btn-primary" onclick="app.updateSchedule()">
+                                    💾 Guardar Horario
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateSchedule() {
+                Object.keys(this.schedule).forEach(key => {
+                    this.schedule[key].start = document.getElementById(`${key}Start`).value;
+                    this.schedule[key].end = document.getElementById(`${key}End`).value;
+                });
+                
+                this.saveData();
+                alert('✅ Horario actualizado exitosamente');
+                this.showScheduleManager();
+            }
+
+            calculateStatus(entryTime, schedule) {
+                const entry = new Date('2000-01-01 ' + entryTime);
+                const scheduled = new Date('2000-01-01 ' + schedule);
+                const diff = (entry - scheduled) / (1000 * 60); // diferencia en minutos
+                
+                if (diff <= 0) return 'on-time';
+                if (diff <= 10) return 'late';
+                return 'absent';
+            }
+
+            getStatusText(status) {
+                const statusMap = {
+                    'on-time': 'Puntual 🟢',
+                    'late': 'Tardío 🔴', 
+                    'absent': 'Ausente 🟡'
+                };
+                return statusMap[status] || status;
+            }
+
+            logout() {
+                if (this.timeUpdateInterval) {
+                    clearInterval(this.timeUpdateInterval);
+                }
+                this.currentUser = null;
+                this.showLogin();
+            }
+        }
+
+        // Inicializar la aplicación
+        const app = new AttendanceSystem();
+    </script>
+</body>
+</html>
