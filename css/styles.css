@@ -1,0 +1,52 @@
+/* Sistema de Asistencia - Estilos adicionales */
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.attendance-table th, .attendance-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.attendance-table th {
+    background-color: #34495e;
+    color: white;
+}
+
+.notification {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 18px;
+    color: #7f8c8d;
+}
+
+/* Mejoras para móvil */
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .card {
+        padding: 15px;
+    }
+    
+    .header {
+        padding: 15px 10px;
+    }
+    
+    .btn {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+}
