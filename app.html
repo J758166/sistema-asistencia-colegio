@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia - Colegio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- La aplicación se carga aquí -->
+    </div>
+
+    <script>
+        // Sistema de Asistencia - Aplicación completa
+        class AttendanceSystem {
+            constructor() {
+                this.currentUser = null;
+                this.teachers = [
+                    {
+                        id: 1,
+                        name: "Prof. Gabriel Martínez",
+                        subjects: "Matemáticas, Psicología",
+                        schedule: "1:00 PM",
+                        avatar: "GM"
+                    },
+                    {
+                        id: 2, 
+                        name: "Prof. Ana López",
+                        subjects: "Literatura, Historia",
+                        schedule: "1:00 PM",
+                        avatar: "AL"
+                    },
+                    {
+                        id: 3,
+                        name: "Prof. Carlos Rodríguez", 
+                        subjects: "Ciencias, Biología",
+                        schedule: "2:00 PM",
+                        avatar: "CR"
+                    }
+                ];
+                
+                this.attendance = [];
+                this.init();
+            }
+
+            init() {
+                this.showLogin();
+            }
+
+            showLogin() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>🏫 Sistema de Asistencia</h1>
+                        <p>Registro de maestros - Colegio</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>🔐 Iniciar Sesión</h2>
+                            <div class="form-group">
+                                <label>Usuario:</label>
+                                <input type="text" id="username" placeholder="Ingresa tu usuario" value="admin">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña:</label>
+                                <input type="password" id="password" placeholder="Ingresa tu contraseña" value="123456">
+                            </div>
+                            <button class="btn btn-primary" onclick="app.login()">🎯 Ingresar al Sistema</button>
+                            <p style="text-align: center; margin-top: 15px; color: #7f8c8d;">
+                                <small>Demo: Usa admin / 123456</small>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            login() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (username && password) {
+                    this.currentUser = { username, role: 'admin' };
+                    this.showDashboard();
+                } else {
+                    alert('Por favor completa ambos campos');
+                }
+            }
+
+            showDashboard() {
+                const today = new Date().toLocaleDateString('es-ES', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📊 Dashboard</h1>
+                        <p>${today} - Bienvenido, ${this.currentUser.username}</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📈 Resumen del Día</h3>
+                            <p><span class="status-on-time">🟢 Puntual:</span> 12 maestros</p>
+                            <p><span class="status-late">🔴 Tardíos:</span> 3 maestros</p>
+                            <p><span class="status-absent">🟡 Ausentes:</span> 1 maestro</p>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>🚀 Acciones Rápidas</h3>
+                            <button class="btn btn-primary" onclick="app.showAttendance()">📝 Registrar Asistencia</button>
+                            <button class="btn btn-success" onclick="app.showTeachers()">👨‍🏫 Ver Maestros</button>
+                            <button class="btn btn-warning" onclick="app.showSchedule()">⏰ Horarios</button>
+                            <button class="btn" onclick="app.logout()" style="background: #95a5a6; color: white;">🚪 Cerrar Sesión</button>
+                        </div>
+
+                        <div class="card">
+                            <h3>🔔 Notificaciones Recientes</h3>
+                            <div class="notification">
+                                <strong>⚠️ Aviso:</strong> Prof. Carlos no registró entrada (1:00 PM)
+                            </div>
+                            <div class="notification">
+                                <strong>⏰ Retardo:</strong> Prof. Ana llegó 15 minutos tarde
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            showAttendance() {
+                const todayAttendances = this.attendance.filter(a => a.date === new Date().toLocaleDateString());
+                
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📝 Registro de Asistencia</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver al Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📅 Fecha: ${new Date().toLocaleDateString('es-ES')}</h3>
+                            
+                            <div class="form-group">
+                                <label>👨‍🏫 Seleccionar Maestro:</label>
+                                <select id="teacherSelect">
+                                    ${this.teachers.map(teacher => 
+                                        `<option value="${teacher.id}">${teacher.name}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>🕐 Hora de entrada:</label>
+                                <input type="time" id="entryTime" value="13:00">
+                            </div>
+
+                            <div class="form-group">
+                                <label>💬 Observaciones:</label>
+                                <input type="text" id="notes" placeholder="Notas adicionales">
+                            </div>
+                            
+                            <button class="btn btn-success" onclick="app.registerAttendance()">💾 Guardar Registro</button>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Registros de Hoy</h3>
+                            <div id="attendanceList">
+                                ${todayAttendances.length > 0 ? 
+                                    todayAttendances.map(att => `
+                                        <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                                            <strong>${att.teacher}</strong><br>
+                                            Hora: ${att.entryTime} - 
+                                            <span class="status-${att.status}">${this.getStatusText(att.status)}</span>
+                                            ${att.notes ? `<br>Notas: ${att.notes}` : ''}
+                                        </div>
+                                    `).join('') 
+                                    : '<p>No hay registros aún para hoy.</p>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getStatusText(status) {
+                const statusMap = {
+                    'on-time': 'Puntual 🟢',
+                    'late': 'Tardío 🔴', 
+                    'absent': 'Ausente 🟡'
+                };
+                return statusMap[status] || status;
+            }
+
+            registerAttendance() {
+                const teacherId = document.getElementById('teacherSelect').value;
+                const entryTime = document.getElementById('entryTime').value;
+                const notes = document.getElementById('notes').value;
+                
+                const teacher = this.teachers.find(t => t.id == teacherId);
+                const status = this.calculateStatus(entryTime, teacher.schedule);
+                
+                this.attendance.push({
+                    teacher: teacher.name,
+                    date: new Date().toLocaleDateString(),
+                    entryTime,
+                    notes,
+                    status: status
+                });
+                
+                alert(`✅ Asistencia registrada para ${teacher.name}`);
+                this.showAttendance();
+            }
+
+            calculateStatus(entryTime, schedule) {
+                const entry = new Date('2000-01-01 ' + entryTime);
+                const scheduled = new Date('2000-01-01 ' + schedule);
+                
+                const diff = (entry - scheduled) / (1000 * 60); // diferencia en minutos
+                
+                if (diff <= 0) return 'on-time';
+                if (diff <= 10) return 'late';
+                return 'absent';
+            }
+
+            showTeachers() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>👨‍🏫 Lista de Maestros</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver al Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        ${this.teachers.map(teacher => `
+                            <div class="card">
+                                <div class="teacher-card">
+                                    <div class="teacher-avatar">${teacher.avatar}</div>
+                                    <div>
+                                        <h3>${teacher.name}</h3>
+                                        <p>📚 ${teacher.subjects}</p>
+                                        <p>⏰ Horario: ${teacher.schedule}</p>
+                                        <p>🆔 ID: ${teacher.id}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        
+                        <div class="card">
+                            <button class="btn btn-primary">➕ Agregar Nuevo Maestro</button>
+                            <button class="btn btn-success">✏️ Editar Maestros</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            showSchedule() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>⏰ Horarios de Clases</h1>
+                        <button class="btn" onclick="app.showDashboard()">← Volver</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>🕐 Horario Actual del Colegio</h3>
+                            <div style="padding: 15px; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
+                                <ul style="padding-left: 20px;">
+                                    <li><strong>1:00-1:40</strong> - Hora 1</li>
+                                    <li><strong>1:40-2:20</strong> - Hora 2</li>
+                                    <li><strong>2:20-3:00</strong> - Hora 3</li>
+                                    <li><strong>3:00-3:40</strong> - Hora 4</li>
+                                    <li><strong>3:40-3:55</strong> - 🍎 Receso</li>
+                                    <li><strong>3:55-4:35</strong> - Hora 5</li>
+                                    <li><strong>4:35-5:15</strong> - Hora 6</li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-primary">✏️ Modificar Horario</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            logout() {
+                this.currentUser = null;
+                this.showLogin();
+            }
+        }
+
+        // Inicializar la aplicación
+        const app = new AttendanceSystem();
+    </script>
+</body>
+</html>
