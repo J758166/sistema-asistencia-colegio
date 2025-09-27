@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia Definitivo V1 - Colegio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        /* Estilos específicos para la versión definitiva */
+        .schedule-block { 
+            background: #f8f9fa; 
+            border-left: 4px solid #3498db; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        .day-tabs { 
+            display: flex; 
+            gap: 5px; 
+            margin-bottom: 15px; 
+            overflow-x: auto;
+        }
+        .day-tab { 
+            padding: 10px 15px; 
+            background: #ecf0f1; 
+            border-radius: 5px; 
+            cursor: pointer;
+            min-width: 80px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .day-tab.active { 
+            background: #3498db; 
+            color: white; 
+        }
+        .class-card { 
+            background: white; 
+            border: 2px solid #e9ecef; 
+            padding: 15px; 
+            margin: 10px 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .class-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+        }
+        .attendance-record {
+            background: #e8f5e8;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #2ecc71;
+        }
+        .time-badge {
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+        .teacher-badge {
+            background: #9b59b6;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">🏫 Cargando Sistema de Asistencia Definitivo...</div>
+    </div>
+
+    <script>
+        // SISTEMA DEFINITIVO V1 - CON GESTIÓN COMPLETA DE HORARIOS
+        class DefinitiveAttendanceSystem {
+            constructor() {
+                this.currentUser = null;
+                this.currentDay = this.getCurrentDay();
+                this.currentView = 'login';
+                
+                // Cargar datos existentes o inicializar
+                this.loadAllData();
+                this.init();
+            }
+
+            getCurrentDay() {
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                return days[new Date().getDay()];
+            }
+
+            loadAllData() {
+                // Maestros
+                this.teachers = JSON.parse(localStorage.getItem('definitive_teachers')) || [
+                    {
+                        id: 1,
+                        name: "Prof. Gabriel Martínez",
+                        email: "gabriel@colegio.edu",
+                        phone: "123-456-7890",
+                        avatar: "GM",
+                        active: true
+                    },
+                    {
+                        id: 2,
+                        name: "Prof. Ana López", 
+                        email: "ana@colegio.edu",
+                        phone: "123-456-7891",
+                        avatar: "AL",
+                        active: true
+                    }
+                ];
+
+                // Horario semanal COMPLETO
+                this.weeklySchedule = JSON.parse(localStorage.getItem('definitive_schedule')) || this.initializeDefaultSchedule();
+
+                // Registros de asistencia
+                this.attendanceRecords = JSON.parse(localStorage.getItem('definitive_attendance')) || [];
+
+                // Catálogos
+                this.subjects = JSON.parse(localStorage.getItem('definitive_subjects')) || [
+                    "Matemáticas", "Lenguaje", "Ciencias", "Historia", "Psicología", 
+                    "Física", "Química", "Biología", "Educación Física", "Arte"
+                ];
+                
+                this.grades = JSON.parse(localStorage.getItem('definitive_grades')) || [
+                    "1ro Secundaria", "2do Secundaria", "3ro Secundaria", 
+                    "4to Secundaria", "5to Secundaria"
+                ];
+
+                this.classrooms = JSON.parse(localStorage.getItem('definitive_classrooms')) || [
+                    "Aula 101", "Aula 102", "Aula 103", "Laboratorio", "Sala de Computo"
+                ];
+            }
+
+            initializeDefaultSchedule() {
+                return {
+                    "Lunes": [
+                        {
+                            id: 1,
+                            teacherId: 1,
+                            startTime: "13:00",
+                            endTime: "13:40",
+                            subject: "Matemáticas",
+                            grade: "4to Secundaria",
+                            classroom: "Aula 101",
+                            course: "4A"
+                        },
+                        {
+                            id: 2,
+                            teacherId: 1, 
+                            startTime: "13:40",
+                            endTime: "14:20",
+                            subject: "Psicología",
+                            grade: "3ro Secundaria", 
+                            classroom: "Aula 102",
+                            course: "3B"
+                        }
+                    ],
+                    "Martes": [
+                        {
+                            id: 3,
+                            teacherId: 1,
+                            startTime: "14:20",
+                            endTime: "15:00", 
+                            subject: "Matemáticas",
+                            grade: "5to Secundaria",
+                            classroom: "Aula 103",
+                            course: "5A"
+                        }
+                    ],
+                    "Miércoles": [],
+                    "Jueves": [],
+                    "Viernes": []
+                };
+            }
+
+            init() {
+                this.showLogin();
+            }
+
+            saveAllData() {
+                localStorage.setItem('definitive_teachers', JSON.stringify(this.teachers));
+                localStorage.setItem('definitive_schedule', JSON.stringify(this.weeklySchedule));
+                localStorage.setItem('definitive_attendance', JSON.stringify(this.attendanceRecords));
+                localStorage.setItem('definitive_subjects', JSON.stringify(this.subjects));
+                localStorage.setItem('definitive_grades', JSON.stringify(this.grades));
+                localStorage.setItem('definitive_classrooms', JSON.stringify(this.classrooms));
+            }
+
+            // ==================== VISTAS PRINCIPALES ====================
+
+            showLogin() {
+                this.currentView = 'login';
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>🏫 Sistema de Asistencia Definitivo V1</h1>
+                        <p>Gestión completa de horarios por día y maestro</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>🔐 Iniciar Sesión</h2>
+                            <div class="form-group">
+                                <label>Usuario:</label>
+                                <input type="text" id="username" value="admin" placeholder="Usuario administrador">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña:</label>
+                                <input type="password" id="password" value="admin123" placeholder="Contraseña">
+                            </div>
+                            <button class="btn btn-primary" onclick="definitiveApp.login()">
+                                🎯 Ingresar al Sistema
+                            </button>
+                            <div style="text-align: center; margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <small><strong>Credenciales de prueba:</strong><br>Usuario: admin | Contraseña: admin123</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            login() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (username === 'admin' && password === 'admin123') {
+                    this.currentUser = { username, role: 'admin' };
+                    this.showMainDashboard();
+                } else {
+                    alert('❌ Credenciales incorrectas. Use: admin / admin123');
+                }
+            }
+
+            showMainDashboard() {
+                this.currentView = 'dashboard';
+                const today = new Date().toLocaleDateString('es-ES');
+                const todaysClasses = this.getTodaysClasses();
+                const todaysRecords = this.getTodaysRecords();
+                
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📊 Dashboard Principal - ${this.currentDay}</h1>
+                        <p>${today} - Bienvenido, ${this.currentUser.username}</p>
+                    </div>
+                    
+                    <div class="container">
+                        <!-- Tarjeta de Resumen -->
+                        <div class="card">
+                            <h3>📈 Resumen del Día</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                <div style="text-align: center; padding: 10px; background: #e8f4fd; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #3498db;">${todaysClasses.length}</div>
+                                    <div>Clases Programadas</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: #e8f5e8; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${todaysRecords.length}</div>
+                                    <div>Registros Completados</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: #fef9e7; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f39c12;">${todaysClasses.length - todaysRecords.length}</div>
+                                    <div>Por Registrar</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta de Acciones Rápidas -->
+                        <div class="card">
+                            <h3>🚀 Acciones Principales</h3>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="definitiveApp.showQuickAttendance()">
+                                    📝 Registro Rápido por Clase
+                                </button>
+                                <button class="btn btn-success" onclick="definitiveApp.showScheduleManager()">
+                                    🗓️ Gestor de Horarios Semanal
+                                </button>
+                                <button class="btn btn-warning" onclick="definitiveApp.showTeachersManager()">
+                                    👨‍🏫 Gestión de Maestros
+                                </button>
+                                <button class="btn" onclick="definitiveApp.showTodaysDetails()" style="background: #9b59b6; color: white;">
+                                    👁️ Detalle del Día Actual
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Registros Recientes -->
+                        ${todaysRecords.length > 0 ? `
+                        <div class="card">
+                            <h3>📋 Registros de Hoy</h3>
+                            ${todaysRecords.slice(0, 5).map(record => `
+                                <div class="attendance-record">
+                                    <strong>${record.teacherName}</strong>
+                                    <span class="teacher-badge">${record.subject}</span>
+                                    <br>
+                                    <small>${record.grade} • ${record.startTime}-${record.endTime}</small>
+                                    <div style="float: right;">
+                                        <span class="status-${record.status.includes('Puntual') ? 'on-time' : record.status.includes('Tardío') ? 'late' : 'absent'}">
+                                            ${record.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            ${todaysRecords.length > 5 ? `<p style="text-align: center; margin-top: 10px;"><em>... y ${todaysRecords.length - 5} registros más</em></p>` : ''}
+                        </div>
+                        ` : ''}
+
+                        <!-- Próximas Clases -->
+                        ${todaysClasses.length > 0 ? `
+                        <div class="card">
+                            <h3>⏰ Próximas Clases de Hoy</h3>
+                            ${todaysClasses.filter(cls => {
+                                const now = new Date();
+                                const classTime = new Date(`${new Date().toDateString()} ${cls.startTime}`);
+                                return classTime > now;
+                            }).slice(0, 3).map(cls => {
+                                const teacher = this.teachers.find(t => t.id === cls.teacherId);
+                                return `
+                                    <div style="padding: 10px; border-left: 3px solid #3498db; margin: 5px 0; background: #f8f9fa;">
+                                        <strong>${cls.subject}</strong> - ${cls.grade}<br>
+                                        <small>${teacher?.name} • ${cls.startTime}-${cls.endTime} • ${cls.classroom}</small>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // ==================== FUNCIONALIDADES CLAVE ====================
+
+            showQuickAttendance() {
+                this.currentView = 'attendance';
+                const todaysClasses = this.getTodaysClasses();
+                const todaysRecords = this.getTodaysRecords();
+                const currentTime = this.getCurrentTime();
+
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📝 Registro por Bloque de Clase</h1>
+                        <div>
+                            <button class="btn" onclick="definitiveApp.showMainDashboard()">← Dashboard</button>
+                            <span class="time-badge">🕐 ${currentTime}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="container">
+                        <!-- Información de hora actual -->
+                        <div class="card">
+                            <h3>🕐 Hora Actual del Sistema</h3>
+                            <div style="text-align: center; padding: 15px; background: #e8f5e8; border-radius: 10px;">
+                                <div style="font-size: 32px; font-weight: bold; color: #27ae60;" id="currentTimeDisplay">${currentTime}</div>
+                                <button class="btn btn-success" onclick="definitiveApp.updateTimeDisplay()" style="margin-top: 10px;">
+                                    🔄 Actualizar Hora
+                                </button>
+                            </div>
+                            <p style="text-align: center; margin-top: 10px; color: #7f8c8d;">
+                                <small>La hora se actualiza automáticamente cada minuto</small>
+                            </p>
+                        </div>
+
+                        <!-- Lista de clases de hoy -->
+                        <div class="card">
+                            <h3>📚 Clases de Hoy - ${this.currentDay}</h3>
+                            ${todaysClasses.length > 0 ? 
+                                todaysClasses.map(cls => {
+                                    const isRegistered = todaysRecords.some(record => record.scheduleId === cls.id);
+                                    const teacher = this.teachers.find(t => t.id === cls.teacherId);
+                                    const status = this.calculateClassStatus(cls, isRegistered);
+                                    
+                                    return `
+                                        <div class="class-card ${isRegistered ? 'attendance-record' : ''}">
+                                            <div style="display: flex; justify-content: between; align-items: start;">
+                                                <div style="flex: 1;">
+                                                    <h4>${cls.subject} - ${cls.grade}</h4>
+                                                    <p>
+                                                        <strong>Profesor:</strong> ${teacher?.name || 'No asignado'}<br>
+                                                        <strong>Horario:</strong> <span class="time-badge">${cls.startTime} - ${cls.endTime}</span><br>
+                                                        <strong>Aula:</strong> ${cls.classroom} • <strong>Curso:</strong> ${cls.course}
+                                                    </p>
+                                                </div>
+                                                <div style="text-align: right;">
+                                                    <div class="status-${status.type}">${status.text}</div>
+                                                    ${!isRegistered ? `
+                                                        <button class="btn btn-primary" onclick="definitiveApp.registerClassAttendance(${cls.id})" 
+                                                                style="margin-top: 10px;">
+                                                            ✅ Registrar Asistencia
+                                                        </button>
+                                                    ` : `
+                                                        <button class="btn" onclick="definitiveApp.viewAttendanceRecord(${cls.id})" 
+                                                                style="margin-top: 10px; background: #95a5a6; color: white;">
+                                                            👁️ Ver Registro
+                                                        </button>
+                                                    `}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('') 
+                                : '<div class="schedule-block"><p>No hay clases programadas para hoy.</p></div>'
+                            }
+                        </div>
+                    </div>
+                `;
+
+                // Iniciar actualización automática de hora
+                this.startTimeAutoUpdate();
+            }
+
+            // ==================== FUNCIONES AUXILIARES ====================
+
+            getCurrentTime() {
+                const now = new Date();
+                return now.toTimeString().substring(0, 5); // HH:MM
+            }
+
+            getTodaysClasses() {
+                return this.weeklySchedule[this.currentDay] || [];
+            }
+
+            getTodaysRecords() {
+                const today = new Date().toLocaleDateString();
+                return this.attendanceRecords.filter(record => record.date === today);
+            }
+
+            calculateClassStatus(classInfo, isRegistered) {
+                if (isRegistered) return { type: 'on-time', text: '✅ Registrado' };
+                
+                const currentTime = this.getCurrentTime();
+                const classTime = classInfo.startTime;
+                
+                if (currentTime < classTime) return { type: 'on-time', text: '⏰ Pendiente' };
+                if (currentTime <= this.addMinutes(classTime, 10)) return { type: 'late', text: '⚠️ En curso' };
+                return { type: 'absent', text: '❌ Fuera de tiempo' };
+            }
+
+            addMinutes(time, minutes) {
+                const [hours, mins] = time.split(':').map(Number);
+                const totalMinutes = hours * 60 + mins + minutes;
+                const newHours = Math.floor(totalMinutes / 60);
+                const newMinutes = totalMinutes % 60;
+                return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+            }
+
+            startTimeAutoUpdate() {
+                if (this.timeUpdateInterval) clearInterval(this.timeUpdateInterval);
+                this.timeUpdateInterval = setInterval(() => {
+                    this.updateTimeDisplay();
+                }, 60000); // Actualizar cada minuto
+            }
+
+            updateTimeDisplay() {
+                if (this.currentView === 'attendance') {
+                    const timeDisplay = document.getElementById('currentTimeDisplay');
+                    if (timeDisplay) {
+                        timeDisplay.textContent = this.getCurrentTime();
+                    }
+                }
+            }
+
+            registerClassAttendance(scheduleId) {
+                const schedule = this.getScheduleById(scheduleId);
+                const teacher = this.teachers.find(t => t.id === schedule.teacherId);
+                const currentTime = this.getCurrentTime();
+                const status = this.calculateAttendanceStatus(currentTime, schedule.startTime);
+                
+                const newRecord = {
+                    id: Date.now(),
+                    scheduleId: scheduleId,
+                    teacherId: schedule.teacherId,
+                    teacherName: teacher.name,
+                    date: new Date().toLocaleDateString(),
+                    day: this.currentDay,
+                    startTime: schedule.startTime,
+                    endTime: schedule.endTime,
+                    subject: schedule.subject,
+                    grade: schedule.grade,
+                    course: schedule.course,
+                    classroom: schedule.classroom,
+                    entryTime: currentTime,
+                    status: status,
+                    registeredBy: this.currentUser.username,
+                    registeredAt: new Date().toISOString()
+                };
+
+                this.attendanceRecords.push(newRecord);
+                this.saveAllData();
+                
+                alert(`✅ Asistencia registrada exitosamente:\n\n` +
+                      `Profesor: ${teacher.name}\n` +
+                      `Clase: ${schedule.subject} - ${schedule.grade}\n` +
+                      `Horario: ${schedule.startTime}-${schedule.endTime}\n` +
+                      `Hora de registro: ${currentTime}\n` +
+                      `Estado: ${status}`);
+                
+                this.showQuickAttendance();
+            }
+
+            calculateAttendanceStatus(entryTime, scheduledTime) {
+                const entry = new Date(`2000-01-01 ${entryTime}`);
+                const scheduled = new Date(`2000-01-01 ${scheduledTime}`);
+                const diffMinutes = (entry - scheduled) / (1000 * 60);
+                
+                if (diffMinutes <= 0) return 'Puntual 🟢';
+                if (diffMinutes <= 10) return `Tardío 🔴 (${Math.abs(diffMinutes)} min)`;
+                return 'Ausente 🟡';
+            }
+
+            getScheduleById(scheduleId) {
+                for (const day in this.weeklySchedule) {
+                    const found = this.weeklySchedule[day].find(cls => cls.id === scheduleId);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            // ==================== VISTAS PENDIENTES DE IMPLEMENTACIÓN ====================
+
+            showScheduleManager() {
+                alert('🚧 Gestor de Horarios - En desarrollo para la próxima versión');
+                this.showMainDashboard();
+            }
+
+            showTeachersManager() {
+                alert('🚧 Gestión de Maestros - En desarrollo para la próxima versión');
+                this.showMainDashboard();
+            }
+
+            showTodaysDetails() {
+                alert('🚧 Detalle del Día - En desarrollo para la próxima versión');
+                this.showMainDashboard();
+            }
+
+            viewAttendanceRecord(scheduleId) {
+                alert('🚧 Vista de Registro - En desarrollo para la próxima versión');
+            }
+
+            logout() {
+                if (this.timeUpdateInterval) {
+                    clearInterval(this.timeUpdateInterval);
+                }
+                this.currentUser = null;
+                this.currentView = 'login';
+                this.showLogin();
+            }
+        }
+
+        // Inicializar la aplicación definitiva
+        const definitiveApp = new DefinitiveAttendanceSystem();
+    </script>
+</body>
+</html>
