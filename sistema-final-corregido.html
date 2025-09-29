@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia Final - Colegio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+
+        .admin-panel { 
+            background: #e8f4fd; 
+            border-left: 4px solid var(--primary); 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        
+        .schedule-block { 
+            background: #f8f9fa; 
+            border-left: 4px solid var(--primary); 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        
+        .day-tabs { 
+            display: flex; 
+            gap: 5px; 
+            margin-bottom: 15px; 
+            overflow-x: auto;
+        }
+        
+        .day-tab { 
+            padding: 10px 15px; 
+            background: #ecf0f1; 
+            border-radius: 5px; 
+            cursor: pointer;
+            min-width: 80px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        
+        .day-tab.active { 
+            background: var(--primary); 
+            color: white; 
+        }
+        
+        .class-card { 
+            background: white; 
+            border: 2px solid #e9ecef; 
+            padding: 15px; 
+            margin: 10px 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .class-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .attendance-record {
+            background: #e8f5e8;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .time-badge {
+            background: var(--primary);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .data-table th {
+            background: var(--dark);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .teacher-form {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .status-puntual { background: #d4edda; color: #155724; }
+        .status-tardio { background: #fff3cd; color: #856404; }
+        .status-ausente { background: #f8d7da; color: #721c24; }
+        
+        .logout-btn {
+            background: var(--danger) !important;
+            color: white !important;
+        }
+
+        .catalog-item {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">🏫 Cargando Sistema de Asistencia Final...</div>
+    </div>
+
+    <script>
+        // SISTEMA FINAL - CON CORRECCIONES ESPECÍFICAS
+        class FinalAttendanceSystem {
+            constructor() {
+                this.currentUser = null;
+                this.currentDay = this.getCurrentDay();
+                this.currentView = 'login';
+                this.adminPassword = "admin123";
+                
+                this.loadAllData();
+                this.init();
+            }
+
+            getCurrentDay() {
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                return days[new Date().getDay()];
+            }
+
+            loadAllData() {
+                this.adminPassword = localStorage.getItem('admin_password') || "admin123";
+                this.teachers = JSON.parse(localStorage.getItem('final_teachers')) || this.getDefaultTeachers();
+                this.weeklySchedule = JSON.parse(localStorage.getItem('final_schedule')) || this.initializeFlexibleSchedule();
+                this.attendanceRecords = JSON.parse(localStorage.getItem('final_attendance')) || [];
+                this.subjects = JSON.parse(localStorage.getItem('final_subjects')) || [
+                    "Matemáticas", "Lenguaje", "Ciencias", "Historia", "Psicología", 
+                    "Física", "Química", "Biología", "Educación Física", "Arte", "Inglés"
+                ];
+                this.grades = JSON.parse(localStorage.getItem('final_grades')) || [
+                    "1ro Secundaria", "2do Secundaria", "3ro Secundaria", 
+                    "4to Secundaria", "5to Secundaria"
+                ];
+                this.classrooms = JSON.parse(localStorage.getItem('final_classrooms')) || [
+                    "Aula 101", "Aula 102", "Aula 103", "Laboratorio", "Sala de Computo", "Cancha"
+                ];
+            }
+
+            getDefaultTeachers() {
+                return [
+                    {
+                        id: 1,
+                        name: "Prof. Gabriel Martínez",
+                        email: "gabriel@colegio.edu",
+                        phone: "123-456-7890",
+                        avatar: "GM",
+                        subjects: ["Matemáticas", "Psicología"],
+                        active: true
+                    },
+                    {
+                        id: 2,
+                        name: "Prof. Ana López", 
+                        email: "ana@colegio.edu",
+                        phone: "123-456-7891",
+                        avatar: "AL",
+                        subjects: ["Lenguaje", "Historia"],
+                        active: true
+                    }
+                ];
+            }
+
+            initializeFlexibleSchedule() {
+                return {
+                    "Lunes": [
+                        {
+                            id: 1,
+                            teacherId: 1,
+                            startTime: "13:00",
+                            endTime: "13:40",
+                            subject: "Matemáticas",
+                            grade: "4to Secundaria",
+                            classroom: "Aula 101",
+                            course: "4A"
+                        }
+                    ],
+                    "Martes": [], "Miércoles": [], "Jueves": [], "Viernes": [], "Sábado": []
+                };
+            }
+
+            saveAllData() {
+                localStorage.setItem('admin_password', this.adminPassword);
+                localStorage.setItem('final_teachers', JSON.stringify(this.teachers));
+                localStorage.setItem('final_schedule', JSON.stringify(this.weeklySchedule));
+                localStorage.setItem('final_attendance', JSON.stringify(this.attendanceRecords));
+                localStorage.setItem('final_subjects', JSON.stringify(this.subjects));
+                localStorage.setItem('final_grades', JSON.stringify(this.grades));
+                localStorage.setItem('final_classrooms', JSON.stringify(this.classrooms));
+            }
+
+            init() {
+                this.showLogin();
+            }
+
+            // ==================== LOGIN MEJORADO (SEGURIDAD) ====================
+            showLogin() {
+                this.currentView = 'login';
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>🏫 Sistema de Asistencia Final</h1>
+                        <p>Gestión completa con horarios flexibles</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>🔐 Iniciar Sesión como Administrador</h2>
+                            <div class="form-group">
+                                <label>Usuario:</label>
+                                <input type="text" id="username" value="admin" readonly style="background: #f8f9fa;">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña:</label>
+                                <input type="password" id="password" placeholder="Ingresa la contraseña de administrador">
+                            </div>
+                            <button class="btn btn-primary" onclick="finalApp.login()">
+                                🎯 Ingresar al Sistema
+                            </button>
+                            <div style="text-align: center; margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <small><strong>Usuario:</strong> admin</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            login() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (username === 'admin' && password === this.adminPassword) {
+                    this.currentUser = { username, role: 'admin' };
+                    this.showMainDashboard();
+                } else {
+                    alert('❌ Contraseña incorrecta. Contacta al administrador.');
+                }
+            }
+
+            // ==================== DASHBOARD PRINCIPAL ====================
+            showMainDashboard() {
+                this.currentView = 'dashboard';
+                const todaysClasses = this.getTodaysClasses();
+                const todaysRecords = this.getTodaysRecords();
+                
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📊 Panel Principal - ${this.currentDay}</h1>
+                        <p>${new Date().toLocaleDateString('es-ES')}</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📅 Seleccionar Día</h3>
+                            <div class="day-tabs">
+                                ${['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => `
+                                    <div class="day-tab ${day === this.currentDay ? 'active' : ''}" 
+                                         onclick="finalApp.changeCurrentDay('${day}')">
+                                        ${day}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📈 Resumen de ${this.currentDay}</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                <div style="text-align: center; padding: 15px; background: #e8f4fd; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #3498db;">${todaysClasses.length}</div>
+                                    <div>Clases</div>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #e8f5e8; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${todaysRecords.length}</div>
+                                    <div>Registros</div>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f39c12;">${this.teachers.length}</div>
+                                    <div>Maestros</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>🚀 Módulos del Sistema</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                <button class="btn btn-primary" onclick="finalApp.showAttendanceModule()">
+                                    📝 Registro de Asistencia
+                                </button>
+                                <button class="btn btn-success" onclick="finalApp.showScheduleManager()">
+                                    🗓️ Gestor de Horarios
+                                </button>
+                                <button class="btn btn-warning" onclick="finalApp.showTeachersManager()">
+                                    👨‍🏫 Gestión de Maestros
+                                </button>
+                                <button class="btn" onclick="finalApp.showReportsModule()" style="background: #9b59b6; color: white;">
+                                    📊 Reportes y Tablas
+                                </button>
+                                <button class="btn" onclick="finalApp.showAdminSettings()" style="background: #e67e22; color: white;">
+                                    ⚙️ Configuración
+                                </button>
+                                <button class="btn logout-btn" onclick="finalApp.logout()">
+                                    🚪 Cerrar Sesión
+                                </button>
+                            </div>
+                        </div>
+
+                        ${todaysClasses.length > 0 ? `
+                        <div class="card">
+                            <h3>📚 Clases de ${this.currentDay}</h3>
+                            ${todaysClasses.map(cls => {
+                                const teacher = this.teachers.find(t => t.id === cls.teacherId);
+                                const record = todaysRecords.find(r => r.scheduleId === cls.id);
+                                return `
+                                    <div class="class-card">
+                                        <div style="display: flex; justify-content: between; align-items: start;">
+                                            <div style="flex: 1;">
+                                                <h4>${cls.subject} - ${cls.grade}</h4>
+                                                <p>
+                                                    <strong>Profesor:</strong> ${teacher?.name}<br>
+                                                    <strong>Horario:</strong> ${cls.startTime} - ${cls.endTime}<br>
+                                                    <strong>Aula:</strong> ${cls.classroom}
+                                                </p>
+                                            </div>
+                                            <div style="text-align: right;">
+                                                ${record ? `
+                                                    <div class="attendance-record">
+                                                        <div>✅ Registrado</div>
+                                                        <small>Entrada: ${record.entryTime}</small>
+                                                        ${record.exitTime ? `<br><small>Salida: ${record.exitTime}</small>` : ''}
+                                                    </div>
+                                                ` : `
+                                                    <button class="btn btn-primary" onclick="finalApp.showAttendanceModule()">
+                                                        Registrar
+                                                    </button>
+                                                `}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            changeCurrentDay(day) {
+                this.currentDay = day;
+                this.showMainDashboard();
+            }
+
+            // ==================== MÓDULO DE ASISTENCIA ====================
+            showAttendanceModule() {
+                const todaysClasses = this.getTodaysClasses();
+                const currentTime = this.getCurrentTime();
+                
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📝 Registro de Asistencia - ${this.currentDay}</h1>
+                        <div>
+                            <button class="btn" onclick="finalApp.showMainDashboard()">← Dashboard</button>
+                            <span class="time-badge">🕐 ${currentTime}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>🕐 Control de Tiempo</h3>
+                            <div style="text-align: center; padding: 20px; background: #e8f5e8; border-radius: 10px;">
+                                <div style="font-size: 32px; font-weight: bold; color: #27ae60;" id="currentTimeDisplay">${currentTime}</div>
+                                <button class="btn btn-success" onclick="finalApp.updateTimeDisplay()">
+                                    🔄 Actualizar Hora
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📚 Clases de ${this.currentDay}</h3>
+                            ${todaysClasses.length > 0 ? 
+                                todaysClasses.map(cls => {
+                                    const teacher = this.teachers.find(t => t.id === cls.teacherId);
+                                    const record = this.getTodaysRecords().find(r => r.scheduleId === cls.id);
+                                    
+                                    return `
+                                        <div class="class-card">
+                                            <h4>${cls.subject} - ${cls.grade} (${cls.course})</h4>
+                                            <p>
+                                                <strong>Profesor:</strong> ${teacher?.name}<br>
+                                                <strong>Horario:</strong> ${cls.startTime} - ${cls.endTime}<br>
+                                                <strong>Aula:</strong> ${cls.classroom}
+                                            </p>
+                                            
+                                            ${!record ? `
+                                                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                                    <button class="btn btn-primary" onclick="finalApp.registerClassEntry(${cls.id})">
+                                                        ✅ Registrar Entrada
+                                                    </button>
+                                                </div>
+                                            ` : !record.exitTime ? `
+                                                <div class="attendance-record">
+                                                    <div>🟡 Clase en progreso</div>
+                                                    <small>Entrada registrada: ${record.entryTime}</small>
+                                                    <div style="margin-top: 10px;">
+                                                        <button class="btn btn-success" onclick="finalApp.registerClassExit(${cls.id})">
+                                                            🏁 Registrar Salida
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ` : `
+                                                <div class="attendance-record">
+                                                    <div>✅ Clase completada</div>
+                                                    <small>Entrada: ${record.entryTime} | Salida: ${record.exitTime}</small>
+                                                    <div style="margin-top: 5px;">
+                                                        <span class="status-badge status-${record.status.toLowerCase()}">
+                                                            ${record.status}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            `}
+                                        </div>
+                                    `;
+                                }).join('') 
+                                : '<div class="schedule-block"><p>No hay clases programadas para este día.</p></div>'
+                            }
+                        </div>
+                    </div>
+                `;
+
+                this.startTimeAutoUpdate();
+            }
+
+            registerClassEntry(scheduleId) {
+                const schedule = this.getScheduleById(scheduleId);
+                const teacher = this.teachers.find(t => t.id === schedule.teacherId);
+                const currentTime = this.getCurrentTime();
+                const status = this.calculateStatus(currentTime, schedule.startTime);
+                
+                const newRecord = {
+                    id: Date.now(),
+                    scheduleId: scheduleId,
+                    teacherId: schedule.teacherId,
+                    teacherName: teacher.name,
+                    date: new Date().toLocaleDateString(),
+                    day: this.currentDay,
+                    startTime: schedule.startTime,
+                    endTime: schedule.endTime,
+                    subject: schedule.subject,
+                    grade: schedule.grade,
+                    course: schedule.course,
+                    classroom: schedule.classroom,
+                    entryTime: currentTime,
+                    exitTime: null,
+                    status: status,
+                    registeredBy: this.currentUser.username,
+                    registeredAt: new Date().toISOString()
+                };
+
+                this.attendanceRecords.push(newRecord);
+                this.saveAllData();
+                
+                alert(`✅ Entrada registrada:\n\nProfesor: ${teacher.name}\nClase: ${schedule.subject}\nHora: ${currentTime}\nEstado: ${status}`);
+                
+                this.showAttendanceModule();
+            }
+
+            registerClassExit(scheduleId) {
+                const record = this.getTodaysRecords().find(r => r.scheduleId === scheduleId);
+                if (!record) return;
+                
+                const currentTime = this.getCurrentTime();
+                record.exitTime = currentTime;
+                record.completed = true;
+                
+                this.saveAllData();
+                
+                alert(`✅ Salida registrada:\n\nProfesor: ${record.teacherName}\nClase: ${record.subject}\nHora de salida: ${currentTime}`);
+                
+                this.showAttendanceModule();
+            }
+
+            // ==================== GESTIÓN DE HORARIOS ====================
+            showScheduleManager() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>🗓️ Gestor de Horarios</h1>
+                        <button class="btn" onclick="finalApp.showMainDashboard()">← Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>➕ Agregar Nueva Clase</h3>
+                            <div class="teacher-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Día:</label>
+                                        <select id="newClassDay">
+                                            ${['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => 
+                                                `<option value="${day}">${day}</option>`
+                                            ).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Profesor:</label>
+                                        <select id="newClassTeacher">
+                                            ${this.teachers.filter(t => t.active).map(t => 
+                                                `<option value="${t.id}">${t.name}</option>`
+                                            ).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Hora inicio:</label>
+                                        <input type="time" id="newClassStart" value="13:00">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Hora fin:</label>
+                                        <input type="time" id="newClassEnd" value="13:40">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Asignatura:</label>
+                                        <input type="text" id="newClassSubject" placeholder="Matemáticas" list="subjectsList">
+                                        <datalist id="subjectsList">
+                                            ${this.subjects.map(s => `<option value="${s}">`).join('')}
+                                        </datalist>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Grado:</label>
+                                        <input type="text" id="newClassGrade" placeholder="4to Secundaria" list="gradesList">
+                                        <datalist id="gradesList">
+                                            ${this.grades.map(g => `<option value="${g}">`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Curso:</label>
+                                        <input type="text" id="newClassCourse" placeholder="4A" value="4A">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Aula:</label>
+                                        <input type="text" id="newClassClassroom" placeholder="Aula 101" list="classroomsList">
+                                        <datalist id="classroomsList">
+                                            ${this.classrooms.map(c => `<option value="${c}">`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                
+                                <button class="btn btn-success" onclick="finalApp.addNewClass()">
+                                    ➕ Agregar Clase
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📅 Horario Semanal</h3>
+                            <div class="day-tabs">
+                                ${['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => `
+                                    <div class="day-tab ${day === this.currentDay ? 'active' : ''}" 
+                                         onclick="finalApp.showDaySchedule('${day}')">
+                                        ${day}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            <div id="dayScheduleContent">
+                                ${this.renderDaySchedule(this.currentDay)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderDaySchedule(day) {
+                const daySchedule = this.weeklySchedule[day] || [];
+                return daySchedule.length > 0 ? 
+                    daySchedule.map(cls => {
+                        const teacher = this.teachers.find(t => t.id === cls.teacherId);
+                        return `
+                            <div class="schedule-block">
+                                <div style="display: flex; justify-content: between; align-items: center;">
+                                    <div style="flex: 1;">
+                                        <h4>${cls.subject} - ${cls.grade} (${cls.course})</h4>
+                                        <p>
+                                            <strong>Profesor:</strong> ${teacher?.name}<br>
+                                            <strong>Horario:</strong> ${cls.startTime} - ${cls.endTime}<br>
+                                            <strong>Aula:</strong> ${cls.classroom}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <button class="btn" onclick="finalApp.deleteClass('${day}', ${cls.id})" 
+                                                style="background: #e74c3c; color: white; padding: 5px 10px;">
+                                            🗑️ Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('') 
+                    : `<div class="schedule-block"><p>No hay clases programadas para ${day}.</p></div>`;
+            }
+
+            showDaySchedule(day) {
+                document.getElementById('dayScheduleContent').innerHTML = this.renderDaySchedule(day);
+                document.querySelectorAll('.day-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.textContent === day);
+                });
+            }
+
+            addNewClass() {
+                const day = document.getElementById('newClassDay').value;
+                const teacherId = parseInt(document.getElementById('newClassTeacher').value);
+                const startTime = document.getElementById('newClassStart').value;
+                const endTime = document.getElementById('newClassEnd').value;
+                const subject = document.getElementById('newClassSubject').value;
+                const grade = document.getElementById('newClassGrade').value;
+                const course = document.getElementById('newClassCourse').value;
+                const classroom = document.getElementById('newClassClassroom').value;
+
+                if (!day || !teacherId || !startTime || !endTime || !subject || !grade || !course) {
+                    alert('Por favor complete todos los campos obligatorios');
+                    return;
+                }
+
+                if (!this.weeklySchedule[day]) {
+                    this.weeklySchedule[day] = [];
+                }
+
+                const newClass = {
+                    id: Date.now(),
+                    teacherId: teacherId,
+                    startTime: startTime,
+                    endTime: endTime,
+                    subject: subject,
+                    grade: grade,
+                    course: course,
+                    classroom: classroom
+                };
+
+                this.weeklySchedule[day].push(newClass);
+                this.weeklySchedule[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+                
+                this.saveAllData();
+                alert(`✅ Clase agregada al horario de ${day}`);
+                this.showDaySchedule(day);
+            }
+
+            deleteClass(day, classId) {
+                if (confirm('¿Está seguro de eliminar esta clase del horario?')) {
+                    this.weeklySchedule[day] = this.weeklySchedule[day].filter(cls => cls.id !== classId);
+                    this.saveAllData();
+                    this.showDaySchedule(day);
+                }
+            }
+
+            // ==================== GESTIÓN DE MAESTROS COMPLETA ====================
+            showTeachersManager() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>👨‍🏫 Gestión de Maestros</h1>
+                        <button class="btn" onclick="finalApp.showMainDashboard()">← Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>➕ Agregar Nuevo Maestro</h3>
+                            <div class="teacher-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Nombre completo:</label>
+                                        <input type="text" id="newTeacherName" placeholder="Prof. María González">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Correo electrónico:</label>
+                                        <input type="email" id="newTeacherEmail" placeholder="ejemplo@colegio.edu">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Teléfono:</label>
+                                        <input type="text" id="newTeacherPhone" placeholder="123-456-7890">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Materias:</label>
+                                        <input type="text" id="newTeacherSubjects" placeholder="Matemáticas, Física">
+                                    </div>
+                                </div>
+                                
+                                <button class="btn btn-success" onclick="finalApp.addNewTeacher()">
+                                    ➕ Agregar Maestro
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Lista de Maestros (${this.teachers.length})</h3>
+                            ${this.teachers.map(teacher => {
+                                const teacherClasses = this.getTeacherClasses(teacher.id);
+                                return `
+                                    <div class="schedule-block">
+                                        <div style="display: flex; justify-content: between; align-items: start;">
+                                            <div style="flex: 1;">
+                                                <h4>${teacher.name}</h4>
+                                                <p>📧 ${teacher.email} • 📞 ${teacher.phone}</p>
+                                                <p><strong>Materias:</strong> ${teacher.subjects?.join(', ') || 'No asignadas'}</p>
+                                                <p><strong>Clases asignadas:</strong> ${teacherClasses.length}</p>
+                                            </div>
+                                            <div>
+                                                <button class="btn" onclick="finalApp.editTeacher(${teacher.id})" 
+                                                        style="background: #f39c12; color: white; padding: 5px 10px; margin: 2px;">
+                                                    ✏️ Editar
+                                                </button>
+                                                ${teacherClasses.length === 0 ? `
+                                                    <button class="btn" onclick="finalApp.deleteTeacher(${teacher.id})" 
+                                                            style="background: #e74c3c; color: white; padding: 5px 10px; margin: 2px;">
+                                                        🗑️ Eliminar
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            addNewTeacher() {
+                const name = document.getElementById('newTeacherName').value;
+                const email = document.getElementById('newTeacherEmail').value;
+                const phone = document.getElementById('newTeacherPhone').value;
+                const subjects = document.getElementById('newTeacherSubjects').value.split(',').map(s => s.trim()).filter(s => s);
+                
+                if (!name) {
+                    alert('El nombre del maestro es obligatorio');
+                    return;
+                }
+
+                const newTeacher = {
+                    id: Math.max(...this.teachers.map(t => t.id), 0) + 1,
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    subjects: subjects,
+                    avatar: name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                    active: true
+                };
+
+                this.teachers.push(newTeacher);
+                this.saveAllData();
+                alert(`✅ Maestro "${name}" agregado exitosamente`);
+                this.showTeachersManager();
+            }
+
+            // ✅ FUNCIÓN COMPLETA PARA EDITAR MAESTRO
+            editTeacher(teacherId) {
+                const teacher = this.teachers.find(t => t.id === teacherId);
+                if (!teacher) return;
+
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>✏️ Editar Maestro</h1>
+                        <button class="btn" onclick="finalApp.showTeachersManager()">← Volver</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>Editar: ${teacher.name}</h3>
+                            <div class="teacher-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Nombre completo:</label>
+                                        <input type="text" id="editTeacherName" value="${teacher.name}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Correo electrónico:</label>
+                                        <input type="email" id="editTeacherEmail" value="${teacher.email || ''}">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Teléfono:</label>
+                                        <input type="text" id="editTeacherPhone" value="${teacher.phone || ''}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Materias (separadas por coma):</label>
+                                        <input type="text" id="editTeacherSubjects" value="${teacher.subjects?.join(', ') || ''}">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <button class="btn btn-primary" onclick="finalApp.saveTeacherEdit(${teacherId})">
+                                        💾 Guardar Cambios
+                                    </button>
+                                    <button class="btn" onclick="finalApp.showTeachersManager()">
+                                        ❌ Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            saveTeacherEdit(teacherId) {
+                const teacher = this.teachers.find(t => t.id === teacherId);
+                if (!teacher) return;
+
+                teacher.name = document.getElementById('editTeacherName').value;
+                teacher.email = document.getElementById('editTeacherEmail').value;
+                teacher.phone = document.getElementById('editTeacherPhone').value;
+                teacher.subjects = document.getElementById('editTeacherSubjects').value.split(',').map(s => s.trim()).filter(s => s);
+                teacher.avatar = teacher.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+                this.saveAllData();
+                alert('✅ Maestro actualizado exitosamente');
+                this.showTeachersManager();
+            }
+
+            deleteTeacher(teacherId) {
+                if (confirm('¿Está seguro de eliminar este maestro?')) {
+                    this.teachers = this.teachers.filter(t => t.id !== teacherId);
+                    for (const day in this.weeklySchedule) {
+                        this.weeklySchedule[day] = this.weeklySchedule[day].filter(cls => cls.teacherId !== teacherId);
+                    }
+                    this.saveAllData();
+                    this.showTeachersManager();
+                }
+            }
+
+            // ==================== REPORTES Y EXPORTACIÓN ====================
+            showReportsModule() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📊 Reportes y Tablas</h1>
+                        <button class="btn" onclick="finalApp.showMainDashboard()">← Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h3>📈 Resumen General</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                                <div style="text-align: center; padding: 15px; background: #e8f4fd; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #3498db;">${this.teachers.length}</div>
+                                    <div>Maestros</div>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #e8f5e8; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${this.attendanceRecords.length}</div>
+                                    <div>Total Registros</div>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f39c12;">${this.getTotalClasses()}</div>
+                                    <div>Clases Programadas</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Registros de Asistencia</h3>
+                            <div style="overflow-x: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Día</th>
+                                            <th>Maestro</th>
+                                            <th>Asignatura</th>
+                                            <th>Grado</th>
+                                            <th>Entrada</th>
+                                            <th>Salida</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${this.attendanceRecords.slice().reverse().map(record => `
+                                            <tr>
+                                                <td>${record.date}</td>
+                                                <td>${record.day}</td>
+                                                <td>${record.teacherName}</td>
+                                                <td>${record.subject}</td>
+                                                <td>${record.grade}</td>
+                                                <td>${record.entryTime}</td>
+                                                <td>${record.exitTime || '--'}</td>
+                                                <td>
+                                                    <span class="status-badge status-${record.status.toLowerCase().includes('puntual') ? 'puntual' : record.status.toLowerCase().includes('tardío') ? 'tardio' : 'ausente'}">
+                                                        ${record.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                        ${this.attendanceRecords.length === 0 ? `
+                                            <tr>
+                                                <td colspan="8" style="text-align: center; padding: 20px; color: #7f8c8d;">
+                                                    No hay registros de asistencia aún.
+                                                </td>
+                                            </tr>
+                                        ` : ''}
+                                    </tbody>
+                                </table>
+                            </div>
+                            ${this.attendanceRecords.length > 0 ? `
+                                <div style="margin-top: 15px; text-align: center;">
+                                    <button class="btn btn-primary" onclick="finalApp.exportToCSV()">
+                                        📥 Exportar a CSV
+                                    </button>
+                                    <button class="btn btn-success" onclick="finalApp.exportToExcel()">
+                                        📊 Exportar a Excel
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ✅ FUNCIÓN COMPLETA PARA EXPORTAR CSV
+            exportToCSV() {
+                try {
+                    let csv = 'Fecha,Día,Maestro,Asignatura,Grado,Entrada,Salida,Estado\n';
+                    
+                    this.attendanceRecords.forEach(record => {
+                        const row = [
+                            `"${record.date}"`,
+                            `"${record.day}"`,
+                            `"${record.teacherName}"`,
+                            `"${record.subject}"`,
+                            `"${record.grade}"`,
+                            `"${record.entryTime}"`,
+                            `"${record.exitTime || ''}"`,
+                            `"${record.status}"`
+                        ].join(',');
+                        csv += row + '\n';
+                    });
+                    
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `asistencia-${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('✅ Archivo CSV exportado exitosamente');
+                } catch (error) {
+                    alert('❌ Error al exportar CSV: ' + error.message);
+                }
+            }
+
+            // ✅ FUNCIÓN COMPLETA PARA EXPORTAR EXCEL
+            exportToExcel() {
+                try {
+                    let html = `
+                        <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <style>
+                                table { border-collapse: collapse; width: 100%; }
+                                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                                th { background-color: #f2f2f2; }
+                            </style>
+                        </head>
+                        <body>
+                            <h2>Reporte de Asistencia - ${new Date().toLocaleDateString()}</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Día</th>
+                                        <th>Maestro</th>
+                                        <th>Asignatura</th>
+                                        <th>Grado</th>
+                                        <th>Entrada</th>
+                                        <th>Salida</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    this.attendanceRecords.forEach(record => {
+                        html += `
+                            <tr>
+                                <td>${record.date}</td>
+                                <td>${record.day}</td>
+                                <td>${record.teacherName}</td>
+                                <td>${record.subject}</td>
+                                <td>${record.grade}</td>
+                                <td>${record.entryTime}</td>
+                                <td>${record.exitTime || ''}</td>
+                                <td>${record.status}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </body>
+                        </html>
+                    `;
+                    
+                    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `asistencia-${new Date().toISOString().split('T')[0]}.xls`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('✅ Archivo Excel exportado exitosamente');
+                } catch (error) {
+                    alert('❌ Error al exportar Excel: ' + error.message);
+                }
+            }
+
+            // ==================== CONFIGURACIÓN COMPLETA ====================
+            showAdminSettings() {
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>⚙️ Configuración del Sistema</h1>
+                        <button class="btn" onclick="finalApp.showMainDashboard()">← Dashboard</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>🔐 Cambiar Contraseña</h3>
+                            <div class="teacher-form">
+                                <div class="form-group">
+                                    <label>Contraseña actual:</label>
+                                    <input type="password" id="currentPassword" placeholder="Contraseña actual">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nueva contraseña:</label>
+                                    <input type="password" id="newPassword" placeholder="Nueva contraseña">
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirmar contraseña:</label>
+                                    <input type="password" id="confirmPassword" placeholder="Confirmar nueva contraseña">
+                                </div>
+                                <button class="btn btn-primary" onclick="finalApp.changeAdminPassword()">
+                                    🔄 Cambiar Contraseña
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>🛠️ Gestión de Catálogos</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                <button class="btn btn-warning" onclick="finalApp.manageCatalog('subjects')">
+                                    📚 Gestionar Asignaturas
+                                </button>
+                                <button class="btn btn-warning" onclick="finalApp.manageCatalog('grades')">
+                                    🎓 Gestionar Grados
+                                </button>
+                                <button class="btn btn-warning" onclick="finalApp.manageCatalog('classrooms')">
+                                    🏫 Gestionar Aulas
+                                </button>
+                                <button class="btn" onclick="finalApp.backupData()" style="background: #27ae60; color: white;">
+                                    💾 Respaldar Datos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ✅ FUNCIONES COMPLETAS PARA GESTIÓN DE CATÁLOGOS
+            manageCatalog(catalogType) {
+                const catalogNames = {
+                    'subjects': 'Asignaturas',
+                    'grades': 'Grados', 
+                    'classrooms': 'Aulas'
+                };
+                
+                const currentCatalog = this[catalogType];
+                const catalogName = catalogNames[catalogType];
+
+                document.getElementById('app').innerHTML = `
+                    <div class="header">
+                        <h1>📋 Gestionar ${catalogName}</h1>
+                        <button class="btn" onclick="finalApp.showAdminSettings()">← Configuración</button>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card admin-panel">
+                            <h3>➕ Agregar ${catalogName.slice(0, -1)}</h3>
+                            <div class="teacher-form">
+                                <div class="form-group">
+                                    <label>Nuevo ${catalogName.slice(0, -1)}:</label>
+                                    <input type="text" id="newCatalogItem" placeholder="Ej: ${catalogType === 'subjects' ? 'Filosofía' : catalogType === 'grades' ? '6to Secundaria' : 'Aula 201'}">
+                                </div>
+                                <button class="btn btn-success" onclick="finalApp.addCatalogItem('${catalogType}')">
+                                    ➕ Agregar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>📋 Lista de ${catalogName} (${currentCatalog.length})</h3>
+                            ${currentCatalog.map((item, index) => `
+                                <div class="catalog-item">
+                                    <span>${item}</span>
+                                    <button class="btn" onclick="finalApp.removeCatalogItem('${catalogType}', ${index})" 
+                                            style="background: #e74c3c; color: white; padding: 3px 8px;">
+                                        🗑️
+                                    </button>
+                                </div>
+                            `).join('')}
+                            ${currentCatalog.length === 0 ? `<p>No hay ${catalogName.toLowerCase()} registradas.</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            addCatalogItem(catalogType) {
+                const newItem = document.getElementById('newCatalogItem').value.trim();
+                if (!newItem) {
+                    alert('Por favor ingrese un valor');
+                    return;
+                }
+
+                if (this[catalogType].includes(newItem)) {
+                    alert('Este item ya existe en el catálogo');
+                    return;
+                }
+
+                this[catalogType].push(newItem);
+                this.saveAllData();
+                this.manageCatalog(catalogType);
+            }
+
+            removeCatalogItem(catalogType, index) {
+                if (confirm('¿Está seguro de eliminar este item?')) {
+                    this[catalogType].splice(index, 1);
+                    this.saveAllData();
+                    this.manageCatalog(catalogType);
+                }
+            }
+
+            changeAdminPassword() {
+                const current = document.getElementById('currentPassword').value;
+                const newPass = document.getElementById('newPassword').value;
+                const confirm = document.getElementById('confirmPassword').value;
+
+                if (current !== this.adminPassword) {
+                    alert('❌ La contraseña actual es incorrecta');
+                    return;
+                }
+
+                if (newPass !== confirm) {
+                    alert('❌ Las nuevas contraseñas no coinciden');
+                    return;
+                }
+
+                if (newPass.length < 4) {
+                    alert('❌ La contraseña debe tener al menos 4 caracteres');
+                    return;
+                }
+
+                this.adminPassword = newPass;
+                this.saveAllData();
+                alert('✅ Contraseña cambiada exitosamente');
+                this.showAdminSettings();
+            }
+
+            backupData() {
+                const dataStr = JSON.stringify({
+                    teachers: this.teachers,
+                    schedule: this.weeklySchedule,
+                    attendance: this.attendanceRecords,
+                    subjects: this.subjects,
+                    grades: this.grades,
+                    classrooms: this.classrooms
+                }, null, 2);
+                
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `respaldo-sistema-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                alert('✅ Datos respaldados exitosamente');
+            }
+
+            // ==================== FUNCIONES AUXILIARES ====================
+            getCurrentTime() {
+                return new Date().toTimeString().substring(0, 5);
+            }
+
+            getTodaysClasses() {
+                return this.weeklySchedule[this.currentDay] || [];
+            }
+
+            getTodaysRecords() {
+                const today = new Date().toLocaleDateString();
+                return this.attendanceRecords.filter(record => record.date === today);
+            }
+
+            getScheduleById(scheduleId) {
+                for (const day in this.weeklySchedule) {
+                    const found = this.weeklySchedule[day].find(cls => cls.id === scheduleId);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            getTeacherClasses(teacherId) {
+                let classes = [];
+                for (const day in this.weeklySchedule) {
+                    classes = classes.concat(this.weeklySchedule[day].filter(cls => cls.teacherId === teacherId));
+                }
+                return classes;
+            }
+
+            getTotalClasses() {
+                let total = 0;
+                for (const day in this.weeklySchedule) {
+                    total += this.weeklySchedule[day].length;
+                }
+                return total;
+            }
+
+            calculateStatus(entryTime, scheduledTime) {
+                const entry = new Date(`2000-01-01 ${entryTime}`);
+                const scheduled = new Date(`2000-01-01 ${scheduledTime}`);
+                const diff = (entry - scheduled) / (1000 * 60);
+                
+                if (diff <= 0) return 'Puntual 🟢';
+                if (diff <= 10) return `Tardío 🔴 (+${diff} min)`;
+                return 'Ausente 🟡';
+            }
+
+            startTimeAutoUpdate() {
+                if (this.timeUpdateInterval) clearInterval(this.timeUpdateInterval);
+                this.timeUpdateInterval = setInterval(() => {
+                    this.updateTimeDisplay();
+                }, 60000);
+            }
+
+            updateTimeDisplay() {
+                if (this.currentView === 'attendance') {
+                    const timeDisplay = document.getElementById('currentTimeDisplay');
+                    if (timeDisplay) {
+                        timeDisplay.textContent = this.getCurrentTime();
+                    }
+                }
+            }
+
+            logout() {
+                if (this.timeUpdateInterval) {
+                    clearInterval(this.timeUpdateInterval);
+                }
+                this.currentUser = null;
+                this.showLogin();
+            }
+        }
+
+        // Inicializar la aplicación FINAL CORREGIDA
+        const finalApp = new FinalAttendanceSystem();
+    </script>
+</body>
+</html>
